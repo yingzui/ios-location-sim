@@ -24,34 +24,8 @@ iOS 的定位子系统（`locationd`），效果等同于 Xcode 里的 Simulate 
 靠 `wait_return()` 阻塞来保持通道，进程一退出定位就还原。本项目在进程内维持一条
 长连接，反复调用 `set()` 切换坐标，中间没有空档。
 
----
-
-## 能在 iPhone 上直接运行吗？
-
-**不能。** 这不是实现方式的问题，是 iOS 的硬限制，换任何写法都一样：
-
-| 层面 | 原因 |
-|---|---|
-| 没有 Python 运行时 | `server.py` 依赖 pymobiledevice3、USB 隧道与 usbmuxd；iOS 不允许 App 起这类本地服务，也不给访问 USB 设备节点 |
-| App 无法给自己下发定位 | 模拟定位是「外部设备通过调试通道告诉 `locationd` 用哪个坐标」。App 本身就是被沙箱约束的一方，没有任何公开 API 能写 `locationd` |
-| 越狱也不行 | iOS 27 没有公开越狱；越狱插件（LocationFaker 之类）只对老系统有效 |
-
-这也是市面上 iAnyGo / AnyTo / GeoPort 全都是「桌面软件 + 手机助手」结构的原因——
-它们同样绕不开电脑这一环。
-
-**唯一可行的「让手机参与」形态：手机当遥控器。**
-
-电脑跑 `start-lan.bat`（监听 `0.0.0.0`），iPhone 用 Safari 打开窗口里打印的
-`http://<电脑局域网IP>:8765/`，就能在手机上点地图、切常用地点、下发/恢复。
-定位注入仍然由电脑通过 USB 完成，**电脑不能关、线不能拔**。
-
-限制三条：
-
-1. 手机与电脑必须能互访。**访客 Wi-Fi / 公司网络常开客户端隔离**（Client Isolation），
-   此时同一个 SSID 也连不通——换成普通 Wi-Fi，或让电脑连手机热点。
-2. 手机浏览器需要自己填一次腾讯地图 Key（见「地图与 Key」）。
-   localStorage 按域名隔离，换 IP 访问要重填一次。
-3. 局域网内其他人也能打开这个页面并控制定位，别在公共 Wi-Fi 下长期开着。
+> 由于注入必须由外部设备通过调试通道发起，控制端只能跑在**电脑**上——
+> iOS 不给 App 任何写 `locationd` 的 API，手机侧没有等价做法。
 
 ---
 
@@ -119,13 +93,11 @@ python -m pip install -U pymobiledevice3
 Windows 双击 `start.bat`（会自动检测 Python 版本并给出提示），或手动：
 
 ```bash
-python server.py                 # 默认 http://127.0.0.1:8765（只有本机能访问）
+python server.py                 # 默认 http://127.0.0.1:8765
 python server.py --port 9000
-python server.py --host 0.0.0.0  # 局域网模式，手机也能打开界面（等同 start-lan.bat）
 ```
 
-`start-lan.bat` 就是 `--host 0.0.0.0` 的封装，启动时会把可用的局域网地址列出来，
-并自动过滤 VMware / Hyper-V 这类手机根本连不到的虚拟网卡。
+控制端只监听本机回环地址（`127.0.0.1`），同一局域网内的其他设备访问不到。
 
 ### 目录结构
 
@@ -133,15 +105,14 @@ python server.py --host 0.0.0.0  # 局域网模式，手机也能打开界面（
 ios-location-sim/
 ├── server.py            # 控制端：HTTP API + 常驻 DVT 连接 + 隧道管理
 ├── index.html           # 前端界面：地图点选、坐标系纠偏、常用地点、日志
-├── start.bat            # Windows 一键启动（仅本机访问）
-├── start-lan.bat        # Windows 一键启动（局域网模式，手机可当遥控器）
+├── start.bat            # Windows 一键启动
 ├── requirements.txt     # 依赖（注释里附「为什么必须 Python 3.12」）
 ├── lookup_place.py      # 地名 → WGS-84 坐标查询（OpenStreetMap / Photon）
 ├── verify_coords.js     # 坐标系换算正确性验证
 ├── audit_presets.py     # 预置点反向地理编码审计
 ├── test_save_flow.js    # 「保存当前」取点逻辑回归测试
 ├── test_presets.js      # 常用地点增删逻辑回归测试
-├── test_api_base.js     # 前端 API 地址解析测试（手机 / 端口变更 / 回退）
+├── test_api_base.js     # 前端 API 地址解析测试（端口变更 / 同源失败回退）
 └── docs/                # README 配图
 ```
 
@@ -153,8 +124,8 @@ ios-location-sim/
 4. **在地图上点一下** → 定位立刻下发（勾选框控制是否自动下发）
 5. 点「**恢复真实定位**」还原
 
-> 状态栏（左上角圆点）会一直显示「已连接 xxxxxx」。**只要控制端窗口不关，模拟定位就一直有效**，
-> 手机可以拔线吗？不行——隧道建立在 USB 上，保持数据线连接。
+> 状态栏（左上角圆点）会一直显示「已连接 xxxxxx」。**只要控制端窗口不关，模拟定位就一直有效**；
+> 隧道建立在 USB 上，中途不能拔线。
 
 ---
 
@@ -228,7 +199,7 @@ node test_presets.js        # 用 DOM 桩真跑一遍增删逻辑，18 项断言
 | `node verify_coords.js` | GCJ-02 ↔ WGS-84 换算：境内偏移量在预期区间、境外零偏移、往返误差亚米级 |
 | `node test_save_flow.js` | 「保存当前」的取点优先级：地图点选 / 手动输入 / 服务端回读三条路径一致 |
 | `node test_presets.js` | 常用地点的保存 / 删除 / 隐藏 / 恢复默认逻辑 |
-| `node test_api_base.js` | 前端 API 地址解析：局域网访问、非默认端口、同源失败自动回退 |
+| `node test_api_base.js` | 前端 API 地址解析：默认端口、换端口、同源失败自动回退、本地文件打开 |
 | `python audit_presets.py` | 预置坐标反向地理编码核验（需要外网，走 Photon） |
 
 > 注意：`lookup_place.py` 依赖外网。国内网络环境下 Overpass API、OSM 官方 API、

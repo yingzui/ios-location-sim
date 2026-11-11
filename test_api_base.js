@@ -1,4 +1,4 @@
-/* 验证前端 API 地址解析：手机通过局域网 IP 打开时，必须打回电脑而不是手机自己。
+/* 验证前端 API 地址解析：请求必须跟随页面来源，换端口时不能死守 8765。
    做法：用不同的 location 桩真执行 index.html 的脚本，记录每个请求的 URL。 */
 const fs = require('fs');
 const vm = require('vm');
@@ -77,24 +77,23 @@ globalThis.__api = api;`;
 }
 
 (async () => {
-  /* ---- 场景 1：手机通过局域网 IP 打开，同源可用 ---- */
-  console.log('\n场景 1  手机访问 http://10.40.247.216:8765/');
-  let r = run({ protocol: 'http:', origin: 'http://10.40.247.216:8765', port: '8765' });
+  /* ---- 场景 1：默认端口，页面与控制端同源 ---- */
+  console.log('\n场景 1  访问 http://127.0.0.1:8765/');
+  let r = run({ protocol: 'http:', origin: 'http://127.0.0.1:8765', port: '8765' });
   await r.ctx.__api('/api/status');
-  check('请求打向电脑的局域网地址',
-    r.urls[r.urls.length - 1] === 'http://10.40.247.216:8765/api/status',
+  check('请求打向页面同源地址',
+    r.urls[r.urls.length - 1] === 'http://127.0.0.1:8765/api/status',
     '实际 ' + r.urls[r.urls.length - 1]);
-  check('没有去请求 127.0.0.1', !r.urls.some(u => u.includes('127.0.0.1')));
 
-  /* ---- 场景 2：非 8765 端口（比如 --port 9000）也不该硬编码 127.0.0.1 ---- */
-  console.log('\n场景 2  电脑用 --port 9000，手机访问 http://10.40.247.216:9000/');
-  r = run({ protocol: 'http:', origin: 'http://10.40.247.216:9000', port: '9000' });
+  /* ---- 场景 2：非 8765 端口（比如 --port 9000）也不该硬编码 8765 ---- */
+  console.log('\n场景 2  用 --port 9000 启动，访问 http://127.0.0.1:9000/');
+  r = run({ protocol: 'http:', origin: 'http://127.0.0.1:9000', port: '9000' });
   await r.ctx.__api('/api/status');
   check('跟随页面端口，而不是死守 8765',
-    r.urls[r.urls.length - 1] === 'http://10.40.247.216:9000/api/status',
+    r.urls[r.urls.length - 1] === 'http://127.0.0.1:9000/api/status',
     '实际 ' + r.urls[r.urls.length - 1]);
 
-  /* ---- 场景 3：页面被别的端口托管（预览面板），同源不可达则回退本机 8765 ---- */
+  /* ---- 场景 3：页面由别的端口托管，同源不可达则回退本机 8765 ---- */
   console.log('\n场景 3  页面由 9000 端口托管，控制端在 8765');
   r = run({ protocol: 'http:', origin: 'http://127.0.0.1:9000', port: '9000',
             failSameOrigin: true });

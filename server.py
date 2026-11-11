@@ -21,9 +21,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
 import re
-import socket
 import subprocess
 import sys
 import threading
@@ -359,66 +357,9 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"ok": False, "error": "not found"}, 404)
 
 
-# 虚拟网卡关键字：这些地址手机连不上，列出来只会让人白试一遍
-VIRTUAL_ADAPTER_HINTS = ("vmware", "virtualbox", "hyper-v", "vethernet",
-                         "loopback", "tap-", "tun", "wsl", "docker")
-
-
-def lan_addresses() -> list[tuple[str, str]]:
-    """列出手机可能用得上的本机 IPv4 地址，形如 [(ip, 网卡名)]。
-
-    只保留真实网卡，过滤回环、链路本地与虚拟网卡，避免把
-    VMware / Hyper-V 的内网地址当成「手机可访问地址」误导用户。
-    """
-    found: list[tuple[str, str]] = []
-
-    if os.name == "nt":
-        try:
-            raw = subprocess.run(["ipconfig"], capture_output=True, timeout=15).stdout
-            text = raw.decode("gbk", errors="replace")
-            alias = "?"
-            for line in text.splitlines():
-                stripped = line.strip()
-                if not stripped:
-                    continue
-                # 适配器标题行是顶格且以冒号结尾；属性行有缩进（「连接特定的 DNS 后缀…:」
-                # 也以冒号结尾，靠缩进区分，否则会把它当成网卡名）。
-                if stripped.endswith(":") and not line[:1].isspace():
-                    alias = stripped.rstrip(":")
-                    continue
-                m = re.search(r"IPv4[^:：]*[:：]\s*(\d{1,3}(?:\.\d{1,3}){3})", stripped)
-                if m:
-                    found.append((m.group(1), alias))
-        except Exception:
-            pass
-
-    if not found:
-        # 退回通用办法：UDP 连一个外部地址，看内核选了哪块网卡出口
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.settimeout(0.5)
-            s.connect(("8.8.8.8", 80))
-            found.append((s.getsockname()[0], "默认出口"))
-            s.close()
-        except Exception:
-            pass
-
-    result: list[tuple[str, str]] = []
-    for ip, name in found:
-        if ip.startswith(("127.", "169.254.")):
-            continue
-        if any(h in name.lower() for h in VIRTUAL_ADAPTER_HINTS):
-            continue
-        if (ip, name) not in result:
-            result.append((ip, name))
-    return result
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description="iOS 定位模拟器 —— 电脑侧控制端")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
-    ap.add_argument("--host", default=DEFAULT_HOST,
-                    help="监听地址；填 0.0.0.0 可让同一 Wi-Fi 下的手机打开界面")
     args = ap.parse_args()
 
     try:
@@ -445,30 +386,18 @@ def main() -> int:
             session.log("✓ Apple 移动设备服务已就绪。下一步：检测设备 → 挂载镜像 → 连接设备。")
 
     try:
-        httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+        httpd = ThreadingHTTPServer((DEFAULT_HOST, args.port), Handler)
     except OSError as exc:
         print()
-        print(f"[×] 无法在 {args.host}:{args.port} 启动：{exc}")
+        print(f"[×] 无法在 {DEFAULT_HOST}:{args.port} 启动：{exc}")
         print(f"    端口被占用了，通常是有另一个控制端还在后台运行。")
         print(f"    处理办法一：结束占用进程  netstat -ano | findstr :{args.port}")
         print(f"    处理办法二：换个端口  python server.py --port 8766")
         return 1
 
-    lan_mode = args.host in ("0.0.0.0", "::", "")
     print("=" * 62)
-    print("  iOS 定位模拟器已启动" + ("（局域网模式：手机也能打开界面）" if lan_mode else ""))
-    print(f"  电脑上打开：http://127.0.0.1:{args.port}/")
-    if lan_mode:
-        ips = lan_addresses()
-        if ips:
-            print("  iPhone 上打开（需与电脑连同一个 Wi-Fi）：")
-            for ip, name in ips:
-                print(f"    http://{ip}:{args.port}/     ← {name}")
-            print("  打不开时依次检查：① Windows 防火墙是否拦了 python.exe")
-            print("                    ② 手机和电脑是否真的在同一网段（别连成访客网络）")
-        else:
-            print("  ⚠ 没探测到可用的局域网地址，请确认电脑已连 Wi-Fi 或有线网络。")
-        print("  ⚠ 局域网内其他人也能访问并控制定位，别在公司/公共 Wi-Fi 下长期开着。")
+    print("  iOS 定位模拟器已启动")
+    print(f"  界面地址：http://127.0.0.1:{args.port}/")
     print("  前置条件：iPhone 已开启「开发者模式」并用数据线连接本机")
     print("  按 Ctrl+C 退出")
     print("=" * 62)

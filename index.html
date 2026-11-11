@@ -117,9 +117,8 @@
 
 /* ============ 配置 ============ */
 const API_PORT = 8765;
-/* 页面从哪个源来，就打哪个源的 API —— 手机用 http://<电脑IP>:8765/ 打开时必须这样，
-   否则会跑去请求手机自己的 127.0.0.1，永远连不上。
-   只有非 http(s) 场景（本地文件打开）才直接指向本机端口。 */
+/* 页面从哪个源来，就打哪个源的 API —— 这样用 --port 换端口时不会打到旧端口上。
+   只有非 http(s) 场景（直接用本地文件打开）才固定指向本机默认端口。 */
 let API_BASE = /^https?:$/.test(location.protocol) ? location.origin
                                                    : 'http://127.0.0.1:' + API_PORT;
 const $ = (id) => document.getElementById(id);
