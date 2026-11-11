@@ -1,0 +1,11 @@
+# iOS 定位模拟器 - 依赖
+#
+# 重要：Windows 上请使用 Python 3.12（或更低）。
+#   原因：传递依赖 lzfse 只提供到 cp312 的预编译 wheel，3.13+ 会退化成源码编译，
+#   需要 MSVC C++ 生成工具，否则安装失败（ERROR: Failed building wheel for lzfse）。
+#   macOS / Linux 无此限制。
+#
+# 安装：
+#   python -m pip install -r requirements.txt
+
+pymobiledevice3>=11.31.0

@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 440" font-family="-apple-system,'Segoe UI','Microsoft YaHei',sans-serif">
+  <!-- 背景与标题 -->
+  <rect width="880" height="440" fill="#ffffff"/>
+  <text x="440" y="36" text-anchor="middle" font-size="19" font-weight="700" fill="#1f2328">数据流：从地图点选到 iPhone 全系统定位</text>
+
+  <!-- ============ 面板 1：浏览器 ============ -->
+  <rect x="20" y="66" width="250" height="252" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="145" y="94" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2328">浏览器 · index.html</text>
+  <rect x="42" y="112" width="206" height="42" rx="6" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="145" y="130" text-anchor="middle" font-size="12.5" fill="#1f2328">地图点选 / 常用地点 / 手动输入</text>
+  <text x="145" y="147" text-anchor="middle" font-size="11.5" fill="#57606a">腾讯地图 · GCJ-02</text>
+  <line x1="145" y1="154" x2="145" y2="176" stroke="#8c959f" stroke-width="1.5"/>
+  <polygon points="145,184 140,174 150,174" fill="#8c959f"/>
+  <rect x="42" y="186" width="206" height="42" rx="6" fill="#fff8e6" stroke="#d4a72c"/>
+  <text x="145" y="204" text-anchor="middle" font-size="12.5" fill="#1f2328">gcj2wgs() 迭代纠偏</text>
+  <text x="145" y="221" text-anchor="middle" font-size="11.5" fill="#57606a">境内偏移 300~700 米，必须换算</text>
+  <line x1="145" y1="228" x2="145" y2="250" stroke="#8c959f" stroke-width="1.5"/>
+  <polygon points="145,258 140,248 150,248" fill="#8c959f"/>
+  <rect x="42" y="260" width="206" height="40" rx="6" fill="#dafbe1" stroke="#1a7f37"/>
+  <text x="145" y="285" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1a7f37">WGS-84 坐标</text>
+
+  <!-- ============ 面板 2：控制端 ============ -->
+  <rect x="334" y="66" width="250" height="252" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="459" y="94" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2328">控制端 · server.py</text>
+  <rect x="356" y="112" width="206" height="42" rx="6" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="459" y="130" text-anchor="middle" font-size="12.5" fill="#1f2328">HTTP API（127.0.0.1:8765）</text>
+  <text x="459" y="147" text-anchor="middle" font-size="11.5" fill="#57606a">亦可用 --host 0.0.0.0 开放局域网</text>
+  <line x1="459" y1="154" x2="459" y2="176" stroke="#8c959f" stroke-width="1.5"/>
+  <polygon points="459,184 454,174 464,174" fill="#8c959f"/>
+  <rect x="356" y="186" width="206" height="42" rx="6" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="459" y="204" text-anchor="middle" font-size="12.5" fill="#1f2328">userspace 隧道（RSD）</text>
+  <text x="459" y="221" text-anchor="middle" font-size="11.5" fill="#57606a">iOS 17.4+ 免管理员、免驱动</text>
+  <line x1="459" y1="228" x2="459" y2="250" stroke="#8c959f" stroke-width="1.5"/>
+  <polygon points="459,258 454,248 464,248" fill="#8c959f"/>
+  <rect x="356" y="260" width="206" height="40" rx="6" fill="#ddf4ff" stroke="#0969da"/>
+  <text x="459" y="278" text-anchor="middle" font-size="12.5" font-weight="700" fill="#0969da">DVT LocationSimulation</text>
+  <text x="459" y="294" text-anchor="middle" font-size="11" fill="#57606a">进程内常驻长连接，切点无空档</text>
+
+  <!-- ============ 面板 3：iPhone ============ -->
+  <rect x="648" y="66" width="212" height="252" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="754" y="94" text-anchor="middle" font-size="14" font-weight="700" fill="#1f2328">iPhone</text>
+  <rect x="666" y="112" width="176" height="42" rx="6" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="754" y="130" text-anchor="middle" font-size="12.5" fill="#1f2328">locationd（定位子系统）</text>
+  <text x="754" y="147" text-anchor="middle" font-size="11.5" fill="#57606a">需开启开发者模式</text>
+  <line x1="754" y1="154" x2="754" y2="176" stroke="#8c959f" stroke-width="1.5"/>
+  <polygon points="754,184 749,174 759,174" fill="#8c959f"/>
+  <rect x="666" y="186" width="176" height="66" rx="6" fill="#dafbe1" stroke="#1a7f37"/>
+  <text x="754" y="212" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1a7f37">全系统定位生效</text>
+  <text x="754" y="230" text-anchor="middle" font-size="11" fill="#57606a">地图 / 天气 / 你自己的 App</text>
+  <text x="754" y="246" text-anchor="middle" font-size="11" fill="#57606a">读到的都是模拟坐标</text>
+  <rect x="666" y="264" width="176" height="36" rx="6" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="754" y="280" text-anchor="middle" font-size="11" fill="#57606a">不需要越狱</text>
+  <text x="754" y="295" text-anchor="middle" font-size="11" fill="#57606a">不需要在手机上装任何东西</text>
+
+  <!-- ============ 箭头（最后绘制，避免标注被面板遮挡） ============ -->
+  <line x1="276" y1="188" x2="322" y2="188" stroke="#0969da" stroke-width="2"/>
+  <polygon points="330,188 318,182 318,194" fill="#0969da"/>
+  <text x="299" y="172" text-anchor="middle" font-size="10" fill="#0969da">POST /api/location</text>
+  <line x1="590" y1="188" x2="636" y2="188" stroke="#1f2328" stroke-width="2"/>
+  <polygon points="644,188 632,182 632,194" fill="#1f2328"/>
+  <text x="617" y="172" text-anchor="middle" font-size="10.5" fill="#57606a">USB 数据线</text>
+
+  <!-- ============ 底部说明 ============ -->
+  <rect x="20" y="342" width="840" height="76" rx="10" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="40" y="368" font-size="12" fill="#1f2328">
+    <tspan font-weight="700" fill="#9a6700">为什么必须常驻连接：</tspan>
+    <tspan>命令行 simulate-location 靠阻塞维持通道，进程一退定位就还原；本项目在进程内长连接上反复 set()，切换坐标无空档。</tspan>
+  </text>
+  <text x="40" y="396" font-size="12" fill="#1f2328">
+    <tspan font-weight="700" fill="#9a6700">iOS 版本差异：</tspan>
+    <tspan>17.4 及以上免管理员直连；17.0–17.3.1 需要管理员权限的 tunneld；16 及以下走旧版 simulate-location 通道。</tspan>
+  </text>
+</svg>

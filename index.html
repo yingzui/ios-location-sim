@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>iOS 定位模拟器</title>
+<style>
+  :root{
+    --bg:#16161a; --panel:#1e1e23; --panel2:#26262c; --line:#33333b;
+    --text:#e9e7e2; --dim:#9b988f; --dim2:#6f6c65;
+    --ok:#5dcaa5; --warn:#ef9f27; --err:#f09595; --accent:#378add;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:13px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+  #app{display:flex;height:100vh}
+  #panel{width:352px;flex:0 0 352px;background:var(--panel);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;overflow:hidden}
+  #map{flex:1;min-width:0;height:100vh}
+  .hd{padding:14px 16px 12px;border-bottom:1px solid var(--line)}
+  .hd h1{margin:0;font-size:15px;font-weight:500}
+  .hd p{margin:4px 0 0;font-size:12px;color:var(--dim2)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dim2);
+    margin-right:6px;vertical-align:1px}
+  .dot.on{background:var(--ok)} .dot.busy{background:var(--warn)}
+  .sec{padding:12px 16px;border-bottom:1px solid var(--line)}
+  .sec h2{margin:0 0 8px;font-size:12px;font-weight:500;color:var(--dim);letter-spacing:.4px}
+  .row{display:flex;gap:6px;flex-wrap:wrap}
+  button{font:inherit;font-size:12px;padding:6px 11px;border-radius:8px;cursor:pointer;
+    background:var(--panel2);color:var(--text);border:1px solid var(--line);transition:.12s}
+  button:hover:not(:disabled){background:#303039;border-color:#45454f}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover:not(:disabled){background:#4a97e2;border-color:#4a97e2}
+  button.danger{background:#3a2326;border-color:#5c3338;color:var(--err)}
+  input{font:inherit;font-size:12px;width:100%;padding:6px 8px;border-radius:8px;
+    background:#141418;color:var(--text);border:1px solid var(--line);font-family:ui-monospace,Consolas,monospace}
+  input:focus{outline:none;border-color:var(--accent)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .cur{font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.75}
+  .cur b{font-weight:500}
+  .cur .k{color:var(--dim2);display:inline-block;width:58px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{font-size:12px;padding:4px 6px 4px 9px;border-radius:999px;background:var(--panel2);
+    border:1px solid var(--line);cursor:pointer;color:var(--dim);transition:.12s;
+    display:inline-flex;align-items:center;gap:2px}
+  .chip:hover{color:var(--text);border-color:#45454f;background:#303039}
+  .chip .x{font-style:normal;font-size:13px;line-height:1;padding:0 3px;border-radius:999px;
+    color:var(--dim2);opacity:.55;transition:.12s}
+  .chip .x:hover{color:var(--err);opacity:1;background:#3a2326}
+  #logbox{flex:1;min-height:90px;overflow:auto;padding:10px 16px;background:#131317;
+    font-family:ui-monospace,Consolas,monospace;font-size:11px;line-height:1.7;color:#8e9aa6}
+  #logbox div{white-space:pre-wrap;word-break:break-all}
+  #logbox .e{color:var(--err)} #logbox .g{color:var(--ok)}
+  .chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-top:8px;cursor:pointer}
+  .tip{font-size:11px;color:var(--dim2);line-height:1.6;margin-top:8px}
+  code{background:#141418;padding:1px 4px;border-radius:4px;font-size:11px;color:#a8b6c4}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <div class="hd">
+      <h1>iOS 定位模拟器</h1>
+      <p><span class="dot" id="dot"></span><span id="stat">未连接</span></p>
+    </div>
+
+    <div class="sec">
+      <h2>设备</h2>
+      <div class="row">
+        <button id="btn-scan">检测设备</button>
+        <button id="btn-prep">挂载镜像</button>
+        <button id="btn-conn" class="primary">连接设备</button>
+        <button id="btn-disc">断开</button>
+      </div>
+      <div class="tip">先确认 iPhone 已开启「设置 → 隐私与安全性 → 开发者模式」并用数据线连接。</div>
+    </div>
+
+    <div class="sec">
+      <h2>当前定位</h2>
+      <div class="cur" id="cur">
+        <div><span class="k">WGS-84</span><b id="cur-wgs">— 未模拟 —</b></div>
+        <div><span class="k">GCJ-02</span><b id="cur-gcj">—</b></div>
+      </div>
+      <div class="tip">下发给 iPhone 的是 <b>WGS-84</b>（GPS 原始坐标）；地图显示用的是 GCJ-02。两者在中国境内相差 300~700 米，工具已自动纠偏。</div>
+    </div>
+
+    <div class="sec">
+      <h2>手动下发坐标（WGS-84）</h2>
+      <div class="grid2">
+        <input id="in-lat" placeholder="纬度 34.7466" autocomplete="off">
+        <input id="in-lon" placeholder="经度 113.6762" autocomplete="off">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="btn-set" class="primary">下发定位</button>
+        <button id="btn-clear" class="danger">恢复真实定位</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="chk-auto" checked style="width:auto"> 点击地图立即下发</label>
+    </div>
+
+    <div class="sec">
+      <h2>常用地点
+        <button id="btn-reset" style="float:right;padding:2px 8px;font-size:11px">恢复默认</button>
+        <button id="btn-save" style="float:right;margin-right:4px;padding:2px 8px;font-size:11px">保存当前</button>
+      </h2>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div id="logbox"></div>
+  </aside>
+
+  <main id="map"></main>
+</div>
+
+<script>
+'use strict';
+
+/* ============ 配置 ============ */
+const API_PORT = 8765;
+/* 页面从哪个源来，就打哪个源的 API —— 手机用 http://<电脑IP>:8765/ 打开时必须这样，
+   否则会跑去请求手机自己的 127.0.0.1，永远连不上。
+   只有非 http(s) 场景（本地文件打开）才直接指向本机端口。 */
+let API_BASE = /^https?:$/.test(location.protocol) ? location.origin
+                                                   : 'http://127.0.0.1:' + API_PORT;
+const $ = (id) => document.getElementById(id);
+
+/* ============ 坐标系：GCJ-02 <-> WGS-84 ============
+   腾讯地图（及国内所有合规地图）用 GCJ-02；iOS 的 CLLocationManager 与模拟定位用 WGS-84。
+   不做转换的话，在中国境内会偏 300~700 米。 */
+const PI = Math.PI, A = 6378245.0, EE = 0.00669342162296594323;
+
+function outOfChina(lng, lat) {
+  return !(lng > 73.66 && lng < 135.05 && lat > 3.86 && lat < 53.55);
+}
+function tLat(x, y) {
+  let r = -100 + 2*x + 3*y + 0.2*y*y + 0.1*x*y + 0.2*Math.sqrt(Math.abs(x));
+  r += (20*Math.sin(6*x*PI) + 20*Math.sin(2*x*PI)) * 2/3;
+  r += (20*Math.sin(y*PI) + 40*Math.sin(y/3*PI)) * 2/3;
+  r += (160*Math.sin(y/12*PI) + 320*Math.sin(y*PI/30)) * 2/3;
+  return r;
+}
+function tLng(x, y) {
+  let r = 300 + x + 2*y + 0.1*x*x + 0.1*x*y + 0.1*Math.sqrt(Math.abs(x));
+  r += (20*Math.sin(6*x*PI) + 20*Math.sin(2*x*PI)) * 2/3;
+  r += (20*Math.sin(x*PI) + 40*Math.sin(x/3*PI)) * 2/3;
+  r += (150*Math.sin(x/12*PI) + 300*Math.sin(x/30*PI)) * 2/3;
+  return r;
+}
+function wgs2gcj(lng, lat) {
+  if (outOfChina(lng, lat)) return [lng, lat];
+  let dLat = tLat(lng - 105, lat - 35), dLng = tLng(lng - 105, lat - 35);
+  const rad = lat / 180 * PI;
+  let m = Math.sin(rad); m = 1 - EE * m * m;
+  const s = Math.sqrt(m);
+  dLat = (dLat * 180) / ((A * (1 - EE)) / (m * s) * PI);
+  dLng = (dLng * 180) / (A / s * Math.cos(rad) * PI);
+  return [lng + dLng, lat + dLat];
+}
+function gcj2wgs(lng, lat) {
+  if (outOfChina(lng, lat)) return [lng, lat];
+  let wlng = lng, wlat = lat;
+  for (let i = 0; i < 6; i++) {           // 迭代逼近，收敛到亚米级
+    const [gl, ga] = wgs2gcj(wlng, wlat);
+    wlng += lng - gl; wlat += lat - ga;
+  }
+  return [wlng, wlat];
+}
+
+/* ============ 状态 ============ */
+let map, markerLayer;
+let serverCurrent = null;  // {lat, lon} 控制端上报的正在模拟的点
+let logTotal = 0;
+let backendOk = null;      // null=未探测 true=在线 false=离线
+
+/* 预置点：坐标全部为 WGS-84（GPS 原始坐标），取自 OpenStreetMap 实测点位，
+   不是从国内地图抄的 GCJ-02 —— 抄过来会偏 500 米以上。 */
+const BUILTIN = [
+  ['郑州·龙湖国际中心北楼', 34.794605, 113.727719],
+  ['郑州·二七广场',   34.752849, 113.659807],
+  ['洛阳·龙门石窟',   34.557115, 112.470711],
+  ['安阳·殷墟博物馆', 36.120520, 114.324346],
+  ['北京·天安门',     39.907359, 116.391263],
+  ['上海·外滩',       31.239323, 121.485561],
+  ['深圳·市民中心',   22.546373, 114.054522],
+  ['中国香港·中环',   22.281700, 114.158800],
+  ['东京·东京塔',     35.658449, 139.745536],
+  ['纽约·自由女神',   40.689253, -74.044548]
+];
+
+/* ============ 日志 ============ */
+function pushLog(lines) {
+  const box = $('logbox');
+  lines.forEach((t) => {
+    const d = document.createElement('div');
+    if (/^\[错误\]|^✗/.test(t)) d.className = 'e';
+    else if (/^✓/.test(t)) d.className = 'g';
+    d.textContent = t;
+    box.appendChild(d);
+  });
+  if (lines.length) box.scrollTop = box.scrollHeight;
+}
+/* 所有请求的唯一出口：同源不通时自动退回本机 8765（预览面板换端口托管页面时用得上）。
+   注意用局部 base 判断是否已回退 —— 页面加载时 status / log 会并发失败，
+   若用全局 API_BASE 判断，先回退的那个会把后一个误判成「无法回退」而直接抛错。 */
+async function fetchApi(path, opt) {
+  const base = API_BASE;
+  try {
+    return await fetch(base + path, opt);
+  } catch (e) {
+    const fallback = 'http://127.0.0.1:' + API_PORT;
+    if (base === fallback) throw e;
+    API_BASE = fallback;
+    return await fetch(fallback + path, opt);
+  }
+}
+async function pollLog() {
+  try {
+    const r = await fetchApi('/api/log?since=' + logTotal);
+    const j = await r.json();
+    if (j.lines && j.lines.length) { logTotal = j.total; pushLog(j.lines); }
+  } catch (e) { /* 后端没起来，忽略 */ }
+}
+
+/* ============ 后端调用 ============ */
+async function api(path, body) {
+  const opt = body ? {method: 'POST', headers: {'Content-Type': 'application/json'},
+                      body: JSON.stringify(body)} : {method: 'GET'};
+  const r = await fetchApi(path, opt);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP ' + r.status));
+  return j;
+}
+
+async function refreshStatus() {
+  try {
+    const s = await api('/api/status');
+    serverCurrent = s.current || null;
+    if (backendOk === false) pushLog(['✓ 控制端已连接。']);
+    backendOk = true;
+    const dot = $('dot'), stat = $('stat');
+    dot.className = 'dot' + (s.busy ? ' busy' : (s.connected ? ' on' : ''));
+    stat.textContent = s.busy ? ({connect:'正在连接…', disconnect:'正在断开…',
+                                  prepare:'正在挂载镜像…'}[s.busy] || '处理中…')
+                   : s.connected ? ('已连接 ' + (s.udid || '').slice(0, 12))
+                   : '未连接设备';
+    if (s.current) {
+      $('cur-wgs').textContent = s.current.lat.toFixed(6) + ', ' + s.current.lon.toFixed(6);
+      const g = wgs2gcj(s.current.lon, s.current.lat);
+      $('cur-gcj').textContent = g[1].toFixed(6) + ', ' + g[0].toFixed(6);
+    } else {
+      $('cur-wgs').textContent = s.connected ? '— 未模拟（真实 GPS）—' : '— 未连接 —';
+      $('cur-gcj').textContent = '—';
+    }
+    $('btn-conn').disabled = s.connected || !!s.busy;
+    $('btn-disc').disabled = !s.connected || !!s.busy;
+    $('btn-set').disabled = !s.connected || !!s.busy;
+    $('btn-clear').disabled = !s.connected || !!s.busy;
+  } catch (e) {
+    if (backendOk !== false) {
+      backendOk = false;
+      $('dot').className = 'dot';
+      $('stat').textContent = '控制端未启动';
+      pushLog(['[错误] 连不上本地控制端 ' + API_BASE + '，请先在项目目录运行 start.bat（或 python server.py）。']);
+      ['btn-scan','btn-prep','btn-conn','btn-disc','btn-set','btn-clear'].forEach((id) => {
+        $(id).disabled = true;
+      });
+    }
+  }
+}
+
+/* ============ 地图 ============ */
+const TMAP_KEY_STORAGE = 'iosloc.tmapkey';
+
+function getKey() {
+  // 支持 ?key=xxx 一次性注入，之后保存在本机 localStorage
+  const q = new URLSearchParams(location.search).get('key');
+  if (q) { localStorage.setItem(TMAP_KEY_STORAGE, q); return q; }
+  return localStorage.getItem(TMAP_KEY_STORAGE) || '';
+}
+
+function hasProxy() {
+  /* 可选：企业内网若有腾讯地图凭据代理，在页面加载前注入
+     window._TMapSecurityConfig = { serviceHost: 'https://...' } 即可免 Key。
+     默认不注入，走「自己的 Key」模式。 */
+  const svc = (window._TMapSecurityConfig || {}).serviceHost || '';
+  return /^https?:\/\//.test(svc);
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('SDK 加载失败'));
+    document.head.appendChild(s);
+  });
+}
+
+async function loadMapSdk() {
+  if (hasProxy()) {                              // 有代理凭据的环境：走代理，不需要 Key
+    await loadScript('https://map.qq.com/api/gljs?v=1.exp');
+    return 'proxy';
+  }
+  const key = getKey();
+  if (!key) return null;
+  window._TMapSecurityConfig = undefined;        // 自己的 Key 走官方直连，绝不能带代理配置
+  await loadScript('https://map.qq.com/api/gljs?v=1.exp&key=' + encodeURIComponent(key));
+  return 'key';
+}
+
+function mapUnavailable(reason, askKey) {
+  pushLog(['[提示] ' + reason]);
+  pushLog(['   仍可使用左侧「手动下发坐标」功能，按 WGS-84 输入经纬度即可。']);
+  const stored = localStorage.getItem(TMAP_KEY_STORAGE);
+  const keyBox = askKey ? ''
+    + '<div style="margin-top:16px;display:flex;gap:8px;justify-content:center">'
+    +   '<input id="in-tmapkey" placeholder="粘贴腾讯地图 Key" style="width:250px;padding:6px 10px;'
+    +     'border:1px solid var(--line);border-radius:8px;background:#141418;color:var(--text);'
+    +     'font-size:12px;font-family:ui-monospace,Consolas,monospace">'
+    +   '<button id="btn-key" class="primary" style="padding:6px 14px">保存并重载</button>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--dim2);max-width:470px;line-height:1.7;margin-top:10px">'
+    +   '地图需要一把<b style="color:var(--dim)">免费的腾讯地图 Key</b>：lbs.qq.com → 控制台 → '
+    +   '<a href="https://lbs.qq.com/dev/console/application/mine" target="_blank" style="color:var(--accent)">创建应用并添加 Key ↗</a>'
+    +   '，一分钟搞定。Key 只保存在本机浏览器，不上传。'
+    +   (stored ? '<br>当前已保存 Key：<code>' + stored.slice(0, 6) + '…</code>'
+    +     ' <a href="javascript:void(0)" id="btn-clearkey" style="color:var(--err)">清除</a>' : '')
+    + '</div>' : '';
+  $('map').innerHTML = '<div style="display:flex;flex-direction:column;gap:8px;height:100%;'
+    + 'align-items:center;justify-content:center;color:var(--dim);font-size:13px;text-align:center;padding:24px">'
+    + '<div style="color:var(--text)">地图不可用 · 请使用左侧「手动下发坐标」</div>'
+    + '<div style="font-size:12px;color:var(--dim2);max-width:470px;line-height:1.6">' + reason + '</div>'
+    + keyBox + '</div>';
+  if (askKey) {
+    $('btn-key').onclick = () => {
+      const k = ($('in-tmapkey').value || '').trim();
+      if (!k) { pushLog(['[错误] 请先粘贴 Key']); return; }
+      localStorage.setItem(TMAP_KEY_STORAGE, k);
+      location.reload();
+    };
+    const ck = $('btn-clearkey');
+    if (ck) ck.onclick = () => { localStorage.removeItem(TMAP_KEY_STORAGE); location.reload(); };
+  }
+}
+
+async function initMap() {
+  let mode = null;
+  try { mode = await loadMapSdk(); }
+  catch (e) { mode = (typeof TMap !== 'undefined') ? 'loaded' : null; }
+
+  if (typeof TMap === 'undefined') {
+    if (mode === 'key') {
+      mapUnavailable('腾讯地图 SDK 加载失败：Key 可能无效、被 Referer 白名单拦截，'
+        + '或被广告拦截插件挡住。可换一个 Key 或清除后重试。', true);
+    } else {
+      mapUnavailable('腾讯地图 SDK 未加载成功（检查网络或广告拦截插件）。', !hasProxy());
+    }
+    return;
+  }
+  map = new TMap.Map('map', {
+    center: new TMap.LatLng(34.7466, 113.6254),
+    zoom: 11,
+    showControl: true
+  });
+
+  const pin = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="34">'
+    + '<path d="M13 1C6.4 1 1 6.4 1 13c0 9.5 12 20 12 20s12-10.5 12-20c0-6.6-5.4-12-12-12z"'
+    + ' fill="#e24b4a" stroke="#fff" stroke-width="1.6"/>'
+    + '<circle cx="13" cy="13" r="4.6" fill="#fff"/></svg>');
+
+  markerLayer = new TMap.MultiMarker({
+    map: map,
+    styles: { pick: new TMap.MarkerStyle({ width: 26, height: 34, anchor: {x: 13, y: 34}, src: pin }) },
+    geometries: []
+  });
+
+  map.on('click', (evt) => {
+    const ll = evt.latLng;
+    place(ll.getLat(), ll.getLng(), $('chk-auto').checked);
+  });
+}
+
+/* gcjLat/gcjLng：地图上的 GCJ-02 坐标
+   注意：这里把换算出的 WGS-84 写回左下角输入框 —— 输入框就是「当前坐标」的真源，
+   「保存当前」读的也是它。 */
+function place(gcjLat, gcjLng, send) {
+  const [wlon, wlat] = gcj2wgs(gcjLng, gcjLat);
+  $('in-lat').value = wlat.toFixed(6);
+  $('in-lon').value = wlon.toFixed(6);
+  $('cur-wgs').textContent = wlat.toFixed(6) + ', ' + wlon.toFixed(6) + '（待下发）';
+  $('cur-gcj').textContent = gcjLat.toFixed(6) + ', ' + gcjLng.toFixed(6);
+  if (markerLayer) {
+    markerLayer.setGeometries([{ id: 'p', styleId: 'pick',
+                                 position: new TMap.LatLng(gcjLat, gcjLng) }]);
+  }
+  if (send) doSet(wlat, wlon);
+}
+
+async function doSet(lat, lon) {
+  try {
+    await api('/api/location', {lat: lat, lon: lon});
+    await pollLog(); await refreshStatus();
+  } catch (e) {
+    pushLog(['[错误] 下发失败：' + e.message]);
+  }
+}
+
+/* ============ 常用地点 ============ */
+const PRESET_KEY = 'iosloc.presets';   // 自己保存的点
+const HIDDEN_KEY = 'iosloc.hidden';    // 被隐藏的内置点
+
+function readList(key) {
+  try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; }
+  catch (e) { return []; }
+}
+function loadCustom() { return readList(PRESET_KEY); }
+function saveCustom(list) { localStorage.setItem(PRESET_KEY, JSON.stringify(list)); }
+function loadHidden() { return readList(HIDDEN_KEY); }
+function saveHidden(list) { localStorage.setItem(HIDDEN_KEY, JSON.stringify(list)); }
+
+function allPresets() {
+  const hidden = loadHidden();
+  return BUILTIN.filter((p) => hidden.indexOf(p[0]) === -1).concat(loadCustom());
+}
+
+function removePreset(name, isCustom) {
+  if (!confirm('删除地点「' + name + '」？')) return;
+  if (isCustom) {
+    saveCustom(loadCustom().filter((p) => p[0] !== name));
+  } else {
+    const h = loadHidden();
+    if (h.indexOf(name) === -1) h.push(name);
+    saveHidden(h);
+  }
+  pushLog(['已删除地点：' + name + (isCustom ? '' : '（内置点，点「恢复默认」可找回）')]);
+  renderChips();
+}
+
+function renderChips() {
+  const box = $('chips'); box.innerHTML = '';
+  const customNames = loadCustom().map((p) => p[0]);
+  allPresets().forEach(([name, lat, lon]) => {
+    const isCustom = customNames.indexOf(name) !== -1;
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.title = (isCustom ? '自建地点' : '内置地点') + '：点击下发定位，点 × 删除';
+
+    const lbl = document.createElement('span');
+    lbl.textContent = name;
+    lbl.onclick = () => {
+      const [gl, ga] = wgs2gcj(lon, lat);
+      if (map) { map.setCenter(new TMap.LatLng(ga, gl)); map.setZoom(15); }
+      place(ga, gl, false);
+      doSet(lat, lon);
+    };
+
+    const x = document.createElement('i');
+    x.className = 'x';
+    x.textContent = '×';
+    x.onclick = (e) => { e.stopPropagation(); removePreset(name, isCustom); };
+
+    chip.appendChild(lbl);
+    chip.appendChild(x);
+    box.appendChild(chip);
+  });
+  if (!allPresets().length) {
+    box.innerHTML = '<span style="font-size:12px;color:var(--dim2)">'
+      + '地点都被删光了，点「恢复默认」找回内置地点。</span>';
+  }
+}
+
+/* ============ 事件绑定 ============ */
+$('btn-scan').onclick = async () => {
+  try { const j = await api('/api/scan', {});
+        pushLog(['已在电脑上发现以下设备：']); pushLog(j.output.split('\n')); }
+  catch (e) { pushLog(['[错误] ' + e.message]); }
+};
+$('btn-prep').onclick = async () => {
+  try { await api('/api/prepare', {}); refreshStatus(); } catch (e) { pushLog(['[错误] ' + e.message]); }
+};
+$('btn-conn').onclick = async () => {
+  pushLog(['—— 开始连接设备 ——']);
+  try { await api('/api/connect', {}); refreshStatus(); } catch (e) { pushLog(['[错误] ' + e.message]); }
+};
+$('btn-disc').onclick = async () => {
+  try { await api('/api/disconnect', {}); refreshStatus(); } catch (e) { pushLog(['[错误] ' + e.message]); }
+};
+$('btn-set').onclick = () => {
+  const lat = parseFloat($('in-lat').value), lon = parseFloat($('in-lon').value);
+  if (isNaN(lat) || isNaN(lon)) { pushLog(['[错误] 请先填写合法的经纬度']); return; }
+  doSet(lat, lon);
+};
+$('btn-clear').onclick = async () => {
+  try { await api('/api/clear', {}); await pollLog(); await refreshStatus(); }
+  catch (e) { pushLog(['[错误] ' + e.message]); }
+};
+/* ============ 当前坐标（唯一真源） ============
+   曾经的 bug：保存当前坐标读的是内部变量 pickedWgs，而它只在地图点击时更新，
+   手动输入下发 / 控制端回读的当前点都不更新它 → 存下来的是"上次在地图上点过的地方"。
+   现在的规则（按优先级），且不依赖任何可能残留的历史变量：
+     1) 左下角输入框里的经纬度（合法且在范围内）—— 就是你此刻看到的那个点
+     2) 控制端上报的正在模拟的点
+     3) 都没有 → 返回 null，界面明确报错，绝不瞎存 */
+function currentWgs() {
+  const lat = parseFloat($('in-lat').value);
+  const lon = parseFloat($('in-lon').value);
+  if (Number.isFinite(lat) && Number.isFinite(lon) &&
+      Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+    return { lat: lat, lon: lon };
+  }
+  if (serverCurrent) return { lat: serverCurrent.lat, lon: serverCurrent.lon };
+  return null;
+}
+
+$('btn-save').onclick = () => {
+  const cur = currentWgs();
+  if (!cur) {
+    pushLog(['[错误] 没有可保存的坐标：先在地图上点一下，或在左下角填好经纬度。']);
+    return;
+  }
+  const name = (prompt('给这个地点起个名字：') || '').trim();
+  if (!name) return;
+  let custom = loadCustom();
+  custom = custom.filter((p) => p[0] !== name);          // 同名覆盖，避免重复
+  const hidden = loadHidden().filter((n) => n !== name); // 若是被隐藏的内置名，直接复活为自建点
+  saveHidden(hidden);
+  custom.push([name, +cur.lat.toFixed(6), +cur.lon.toFixed(6)]);
+  saveCustom(custom);
+  renderChips();
+  // 让地图标记与面板同步到刚保存的点，避免"存的是 A、标记在 B"
+  const g = wgs2gcj(cur.lon, cur.lat);
+  if (map) { map.setCenter(new TMap.LatLng(g[1], g[0])); map.setZoom(15); }
+  place(g[1], g[0], false);
+  pushLog(['已保存地点：' + name + '  (' + cur.lat.toFixed(6) + ', ' + cur.lon.toFixed(6) + ')']);
+  pushLog(['   点标签可跳回此点；标签右侧 × 可删除。']);
+};
+$('btn-reset').onclick = () => {
+  if (!confirm('恢复内置地点？自己保存的地点也会被一并清除。')) return;
+  localStorage.removeItem(PRESET_KEY);
+  localStorage.removeItem(HIDDEN_KEY);
+  renderChips();
+  pushLog(['已恢复默认地点列表。']);
+};
+
+/* ============ 启动 ============ */
+initMap();
+renderChips();
+pollLog();
+refreshStatus();
+setInterval(pollLog, 1200);
+setInterval(refreshStatus, 2000);
+</script>
+</body>
+</html>
