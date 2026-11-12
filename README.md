@@ -55,32 +55,28 @@ iOS 的定位子系统（`locationd`），效果等同于 Xcode 里的 Simulate 
 
 ### 0. 前置条件
 
-- **Python 版本：Windows 上请用 3.12**（详见下方「为什么必须 3.12」）
+- **Python 3.9 及以上**，3.9 ~ 3.14 都可以（详见下方「Python 版本」）
 - iPhone 用**数据线**接电脑，手机上点「信任此电脑」
 - iPhone 打开 **设置 → 隐私与安全性 → 开发者模式**（会重启一次）
   - 若找不到这个选项，先执行：`python -m pymobiledevice3 amfi reveal-developer-mode`
 - **Windows 必须装官网版 iTunes**（<https://www.apple.com/itunes/download/win64>），
   不要用 Microsoft Store 的「Apple 设备」——后者会导致 USB/Wi-Fi 设备发现失效
 
-### 为什么必须 Python 3.12
+### Python 版本
 
-`pymobiledevice3` 的传递依赖 `lzfse`（LZFSE 解压，用于处理苹果镜像）
-**只在 PyPI 上提供到 cp312 的预编译包**。在 Python 3.13 / 3.14 上，
-pip 会退化成从源码编译，然后报：
+唯一硬性要求来自 `pymobiledevice3` 本身：**Python ≥ 3.9**。除此之外没有版本限制，
+3.9 / 3.10 / 3.11 / 3.12 / 3.13 / 3.14 都能直接 `pip install`。
 
-```
-error: Microsoft Visual C++ 14.0 or greater is required.
-ERROR: Failed building wheel for lzfse
-```
+> 早期确实有个坑：`pymobiledevice3` 的传递依赖 `lzfse`（解压苹果镜像用）一度只发布到
+> cp312 的预编译包，Python 3.13+ 会让 pip 退化成源码编译，报
+> `Microsoft Visual C++ 14.0 or greater is required` → `Failed building wheel for lzfse`。
+> 该问题已由 **`lzfse 0.4.2.post1`（2026-10-16 发布）** 解决，现在 cp39–cp315 都有
+> `win_amd64` wheel，不再需要 MSVC 或降级 Python。
 
-两条出路：
+本仓库在 **Python 3.14.6 + pymobiledevice3 11.52.1** 上实测通过：
+安装无编译、关键模块可导入、`server.py` 正常启动、四套离线测试全绿。
 
-| 方案 | 说明 |
-|---|---|
-| **装 Python 3.12**（推荐） | 直接 `pip install pymobiledevice3` 即可，秒装 |
-| 装 MSVC C++ 生成工具 | 几个 GB，只为编译一个几十 KB 的解压库，不划算 |
-
-> macOS / Linux 上 lzfse 有对应 wheel，不受此限制。
+只有在 pip 缓存里仍解析到旧版 lzfse（0.4.2 及更早）的环境，才需要临时降级到 3.12 或装 MSVC 生成工具。
 
 ### 1. 安装依赖
 
@@ -90,7 +86,7 @@ python -m pip install -U pymobiledevice3
 
 ### 2. 启动控制端
 
-Windows 双击 `start.bat`（会自动检测 Python 版本并给出提示），或手动：
+Windows 双击 `start.bat`（自动挑选可用的 Python，并校验 ≥ 3.9），或手动：
 
 ```bash
 python server.py                 # 默认 http://127.0.0.1:8765
@@ -106,7 +102,7 @@ ios-location-sim/
 ├── server.py            # 控制端：HTTP API + 常驻 DVT 连接 + 隧道管理
 ├── index.html           # 前端界面：地图点选、坐标系纠偏、常用地点、日志
 ├── start.bat            # Windows 一键启动
-├── requirements.txt     # 依赖（注释里附「为什么必须 Python 3.12」）
+├── requirements.txt     # 依赖（注释里附「Python 版本」说明）
 ├── lookup_place.py      # 地名 → WGS-84 坐标查询（OpenStreetMap / Photon）
 ├── verify_coords.js     # 坐标系换算正确性验证
 ├── audit_presets.py     # 预置点反向地理编码审计
