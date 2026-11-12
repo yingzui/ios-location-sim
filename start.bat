@@ -6,20 +6,43 @@ REM ============================================================
 chcp 65001 >nul
 cd /d "%~dp0"
 
-REM --- Pick an interpreter: the 'py' launcher when available, else 'python'
-REM     from PATH. Any Python >= 3.9 works: the old "lzfse ships no wheel
-REM     above cp312" restriction was lifted in lzfse 0.4.2.post1 ---
-set "PY=python"
+REM --- Interpreter resolution order:
+REM     1. %IOSLOC_PYTHON%            explicit override (full path)
+REM     2. envs\iosloc312\...\python  project-local 3.12 venv, made by setup-env.bat
+REM     3. py -3                      latest 3.x from the Windows launcher
+REM     4. python                     whatever is on PATH
+REM     Python >= 3.9 is required (pymobiledevice3 constraint).
+set "PY="
 set "PYARGS="
-where py >nul 2>nul
-if %errorlevel%==0 (
-  set "PY=py"
-  set "PYARGS=-3"
-)
+set "PYSRC="
 
+if not defined IOSLOC_PYTHON goto check_venv
+set "PY=%IOSLOC_PYTHON%"
+set "PYSRC=IOSLOC_PYTHON env var"
+goto have_py
+
+:check_venv
+if not exist "envs\iosloc312\Scripts\python.exe" goto check_pylauncher
+set "PY=envs\iosloc312\Scripts\python.exe"
+set "PYSRC=project venv envs\iosloc312"
+goto have_py
+
+:check_pylauncher
+where py >nul 2>nul
+if errorlevel 1 goto check_path
+set "PY=py"
+set "PYARGS=-3"
+set "PYSRC=py launcher (latest 3.x)"
+goto have_py
+
+:check_path
+set "PY=python"
+set "PYSRC=python on PATH"
+
+:have_py
 echo ============================================================
 echo   iOS Location Simulator
-echo   Interpreter:
+echo   Interpreter: %PYSRC%
 "%PY%" %PYARGS% --version
 echo ============================================================
 echo.

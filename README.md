@@ -55,30 +55,48 @@ iOS 的定位子系统（`locationd`），效果等同于 Xcode 里的 Simulate 
 
 ### 0. 前置条件
 
-- **Python 3.9 及以上**，3.9 ~ 3.14 都可以（详见下方「Python 版本」）
+- **Python 3.12 独立环境**（`setup-env.bat` 一键建好，详见下方「Python 环境」）；
+  其他 3.9+ 版本也能跑，但不如 3.12 省心
 - iPhone 用**数据线**接电脑，手机上点「信任此电脑」
 - iPhone 打开 **设置 → 隐私与安全性 → 开发者模式**（会重启一次）
   - 若找不到这个选项，先执行：`python -m pymobiledevice3 amfi reveal-developer-mode`
 - **Windows 必须装官网版 iTunes**（<https://www.apple.com/itunes/download/win64>），
   不要用 Microsoft Store 的「Apple 设备」——后者会导致 USB/Wi-Fi 设备发现失效
 
-### Python 版本
+### Python 环境
 
-唯一硬性要求来自 `pymobiledevice3` 本身：**Python ≥ 3.9**。除此之外没有版本限制，
-3.9 / 3.10 / 3.11 / 3.12 / 3.13 / 3.14 都能直接 `pip install`。
+推荐给本项目单独建一个 **Python 3.12 环境**，依赖只装在里面，不污染全局 site-packages：
 
-> 早期确实有个坑：`pymobiledevice3` 的传递依赖 `lzfse`（解压苹果镜像用）一度只发布到
+```bat
+setup-env.bat                        :: 用 py 启动器里的 3.12
+setup-env.bat "C:\Python312\python.exe"   :: 或者手动指定解释器
+```
+
+它会在 `envs\iosloc312\` 建好虚拟环境并装上依赖；之后双击 `start.bat` 会自动优先使用它
+（`envs\` 已加入 `.gitignore`，不会进仓库）。
+
+`start.bat` 的挑选顺序：
+
+| 顺序 | 解释器 | 说明 |
+|---|---|---|
+| 1 | `%IOSLOC_PYTHON%` | 环境变量显式指定，优先于一切 |
+| 2 | `envs\iosloc312\Scripts\python.exe` | `setup-env.bat` 建的项目内环境 |
+| 3 | `py -3` | Windows 启动器里的最新 3.x |
+| 4 | `python` | PATH 上的那个 |
+
+硬性下限只有一条：**Python ≥ 3.9**（`pymobiledevice3` 自己的 `requires_python`）。
+3.10 ~ 3.14 实测都能正常安装运行，选 3.12 是因为本项目就在这个版本上开发验证。
+
+> 历史坑，供参考：`pymobiledevice3` 的传递依赖 `lzfse`（解压苹果镜像用）一度只发布到
 > cp312 的预编译包，Python 3.13+ 会让 pip 退化成源码编译，报
 > `Microsoft Visual C++ 14.0 or greater is required` → `Failed building wheel for lzfse`。
 > 该问题已由 **`lzfse 0.4.2.post1`（2026-10-16 发布）** 解决，现在 cp39–cp315 都有
-> `win_amd64` wheel，不再需要 MSVC 或降级 Python。
-
-本仓库在 **Python 3.14.6 + pymobiledevice3 11.52.1** 上实测通过：
-安装无编译、关键模块可导入、`server.py` 正常启动、四套离线测试全绿。
-
-只有在 pip 缓存里仍解析到旧版 lzfse（0.4.2 及更早）的环境，才需要临时降级到 3.12 或装 MSVC 生成工具。
+> `win_amd64` wheel，不再需要 MSVC。所以 3.13 / 3.14 用系统 Python 也能装，只是依赖会进全局。
 
 ### 1. 安装依赖
+
+推荐先跑 `setup-env.bat`（见上），依赖会装在项目内的 3.12 环境里。
+不想建环境、直接用系统 Python 也可以：
 
 ```bash
 python -m pip install -U pymobiledevice3
@@ -86,10 +104,11 @@ python -m pip install -U pymobiledevice3
 
 ### 2. 启动控制端
 
-Windows 双击 `start.bat`（自动挑选可用的 Python，并校验 ≥ 3.9），或手动：
+Windows 双击 `start.bat`（按上表顺序挑解释器，并校验 ≥ 3.9），或手动：
 
 ```bash
-python server.py                 # 默认 http://127.0.0.1:8765
+envs\iosloc312\Scripts\python.exe server.py   # 用了 setup-env.bat 就这样起
+python server.py                              # 没用就交给系统 Python
 python server.py --port 9000
 ```
 
@@ -101,8 +120,9 @@ python server.py --port 9000
 ios-location-sim/
 ├── server.py            # 控制端：HTTP API + 常驻 DVT 连接 + 隧道管理
 ├── index.html           # 前端界面：地图点选、坐标系纠偏、常用地点、日志
-├── start.bat            # Windows 一键启动
-├── requirements.txt     # 依赖（注释里附「Python 版本」说明）
+├── start.bat            # Windows 一键启动（自动挑选解释器）
+├── setup-env.bat        # 建项目内的 Python 3.12 环境 envs\iosloc312（可选）
+├── requirements.txt     # 依赖（注释里附「Python 环境」说明）
 ├── lookup_place.py      # 地名 → WGS-84 坐标查询（OpenStreetMap / Photon）
 ├── verify_coords.js     # 坐标系换算正确性验证
 ├── audit_presets.py     # 预置点反向地理编码审计

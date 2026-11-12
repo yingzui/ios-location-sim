@@ -1,11 +1,16 @@
 # iOS 定位模拟器 - 依赖
 #
-# Python 版本：3.9 及以上均可（3.9 ~ 3.14 实测可用）。
+# Python 环境：推荐 3.12（setup-env.bat 会自动建好 envs\iosloc312）。
+#   硬性下限是 Python >= 3.9（pymobiledevice3 的 requires_python），
+#   3.10 ~ 3.14 实测都能装能跑。
 #   历史坑：传递依赖 lzfse 曾只发到 cp312 的预编译 wheel，3.13+ 会退化成源码编译，
 #   报 "Failed building wheel for lzfse"。lzfse 0.4.2.post1（2026-10-16）起已补齐
-#   cp313 / cp314 / cp315 的 win_amd64 wheel，不再需要 MSVC 或降级 Python。
+#   cp313 / cp314 / cp315 的 win_amd64 wheel，不再需要 MSVC。
 #
-# 安装：
+# 安装（推荐，隔离到项目内）：
+#   setup-env.bat
+#
+# 安装（用系统 Python，依赖会进全局 site-packages）：
 #   python -m pip install -r requirements.txt
 
 pymobiledevice3>=11.31.0
